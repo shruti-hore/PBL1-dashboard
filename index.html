@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DA-TCN | Reliability Aware RUL Prediction</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-logo">
+            <span class="logo-bracket">[</span>DA-TCN<span class="logo-bracket">]</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#hero" class="nav-link">Home</a></li>
+            <li><a href="#summary" class="nav-link">Summary</a></li>
+            <li><a href="#dataviz" class="nav-link">Data</a></li>
+            <li><a href="#methodology" class="nav-link">Method</a></li>
+            <li><a href="#architecture" class="nav-link">Architecture</a></li>
+            <li><a href="#prototype" class="nav-link">Demo</a></li>
+            <li><a href="#results" class="nav-link">Results</a></li>
+            <li><a href="#sota" class="nav-link">SOTA</a></li>
+            <li><a href="#conclusion" class="nav-link">Conclusion</a></li>
+        </ul>
+        <div class="nav-hamburger" id="hamburger">
+            <span></span><span></span><span></span>
+        </div>
+    </nav>
+
+    <!-- 1. HERO SECTION -->
+    <header id="hero" class="section hero-area">
+        <div class="hero-bg-grid"></div>
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+        <div class="container hero-inner">
+            <div class="hero-badge">
+                <i class="fas fa-microchip"></i>
+                Project Based Learning - 1 · SIT Pune · Group 11
+            </div>
+            <h1 class="hero-title">
+                Reliability Aware<br>
+                <span class="highlight-primary">RUL Prediction</span><br>
+                <span class="hero-sub">using <span class="highlight-secondary">DA-TCN</span></span>
+            </h1>
+            <p class="tagline">Addressing Domain Shift in NASA C-MAPSS FD004 Multi-Condition Datasets</p>
+
+            <div class="team-grid">
+                <div class="member-card" data-delay="0">
+                    <div class="member-avatar"><i class="fas fa-user-graduate"></i></div>
+                    <div class="member-info">
+                        <p class="member-name">Haithm Gaber</p>
+                        <span class="member-id">24070126062</span>
+                    </div>
+                </div>
+                <div class="member-card" data-delay="100">
+                    <div class="member-avatar"><i class="fas fa-user-graduate"></i></div>
+                    <div class="member-info">
+                        <p class="member-name">Shantanu Shaji</p>
+                        <span class="member-id">24070126165</span>
+                    </div>
+                </div>
+                <div class="member-card" data-delay="200">
+                    <div class="member-avatar"><i class="fas fa-user-graduate"></i></div>
+                    <div class="member-info">
+                        <p class="member-name">Shruti Hore</p>
+                        <span class="member-id">24070126172</span>
+                    </div>
+                </div>
+                <div class="member-card" data-delay="300">
+                    <div class="member-avatar"><i class="fas fa-user-graduate"></i></div>
+                    <div class="member-info">
+                        <p class="member-name">Spandana Mohapatra</p>
+                        <span class="member-id">24070126176</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="guide-box">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>Guided by: <strong>Dr. Geetanjali Sharma</strong></span>
+            </div>
+
+            
+        </div>
+        <a href="#summary" class="scroll-cta"><i class="fas fa-chevron-down"></i></a>
+    </header>
+
+    <!-- 2. PROJECT SUMMARY + PROBLEM STATEMENT -->
+    <section id="summary" class="section reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Overview</span>
+                <h2 class="section-title">Problem &amp; Motivation</h2>
+            </div>
+            <div class="two-col-grid">
+                <div class="glass-card">
+                    <div class="card-icon-wrap amber-bg"><i class="fas fa-exclamation-triangle"></i></div>
+                    <h3>Problem Statement</h3>
+                    <p>Remaining Useful Life (RUL) models perform well in single-condition settings like <strong>FD001</strong>. However, performance collapses in <strong>FD004</strong> — featuring 6 operating conditions and 2 fault modes — because identical sensor readings carry different physical meanings across conditions.</p>
+                </div>
+                <div class="glass-card">
+                    <div class="card-icon-wrap primary-bg"><i class="fas fa-sync-alt"></i></div>
+                    <h3>Why Existing Models Fail</h3>
+                    <ul class="styled-list">
+                        <li><strong>Sensor Ambiguity:</strong> Models confuse condition changes with degradation signals.</li>
+                        <li><strong>Domain Shift:</strong> Training distributions differ from test in complex altitude/speed regimes.</li>
+                        <li><strong>Flat Predictions:</strong> LSTM/GRU often output constant predictions (~125 cycles) ignoring sensor fluctuations.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="dataset-strip">
+                <div class="ds-item">
+                    <span class="ds-label">Dataset</span>
+                    <span class="ds-val">NASA C-MAPSS FD004</span>
+                </div>
+                <div class="ds-sep"></div>
+                <div class="ds-item">
+                    <span class="ds-label">Operating Conditions</span>
+                    <span class="ds-val highlight-secondary">6</span>
+                </div>
+                <div class="ds-sep"></div>
+                <div class="ds-item">
+                    <span class="ds-label">Fault Modes</span>
+                    <span class="ds-val highlight-secondary">2</span>
+                </div>
+                <div class="ds-sep"></div>
+                <div class="ds-item">
+                    <span class="ds-label">Sensors Used</span>
+                    <span class="ds-val highlight-secondary">14</span>
+                </div>
+                <div class="ds-sep"></div>
+                <div class="ds-item">
+                    <span class="ds-label">Samples Count</span>
+                    <span class="ds-val highlight-secondary">60k+</span>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+    <!-- OBJECTIVES SECTION -->
+<section id="objectives" class="section reveal-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-tag">Goals</span>
+            <h2 class="section-title">Project Objectives</h2>
+        </div>
+
+        <div class="objectives-grid">
+            <div class="objective-card glass-card">
+                <div class="obj-icon primary-bg"><i class="fas fa-database"></i></div>
+                <h4>Architectural Innovation</h4>
+                <p>Transform raw C-MAPSS sensor data into structured degradation sequences using normalization and sliding windows.</p>
+            </div>
+
+            <div class="objective-card glass-card">
+                <div class="obj-icon secondary-bg"><i class="fas fa-chart-line"></i></div>
+                <h4>Benchmarking</h4>
+                <p>Evaluate LSTM, CNN, and TCN models to establish performance baselines.</p>
+            </div>
+
+            <div class="objective-card glass-card">
+                <div class="obj-icon amber-bg"><i class="fas fa-project-diagram"></i></div>
+                <h4>Hybridization</h4>
+                <p>Design a physics-informed hybrid model utilizing degradation-rate encoding and monotonic loss constraints.</p>
+            </div>
+
+            <div class="objective-card glass-card">
+                <div class="obj-icon primary-bg"><i class="fas fa-brain"></i></div>
+                <h4>Performance Validation</h4>
+                <p>Build a degradation-aware neuro-symbolic model combining physical insights with temporal learning.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+    
+    <!-- 3. DATA VISUALIZATION -->
+    <section id="dataviz" class="section bg-alt reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Exploration</span>
+                <h2 class="section-title">Data Visualization</h2>
+            </div>
+            <p class="section-intro">Explore the multi-modal nature of FD004 and how it differs from simpler datasets.</p>
+
+            <div class="viz-toolbar">
+                <label class="viz-label"><i class="fas fa-layer-group"></i> Select View:</label>
+                <div class="viz-btn-group">
+                    <button class="viz-btn active" onclick="switchViz('fd001')" data-viz="fd001">FD001 Conditions</button>
+                    <button class="viz-btn" onclick="switchViz('fd002')" data-viz="fd002">FD004 Conditions</button>
+                    <button class="viz-btn" onclick="switchViz('violin')" data-viz="violin">Violin Plots</button>
+                </div>
+            </div>
+
+            <div class="viz-frame glass-card">
+                <div class="viz-caption" id="viz-caption">
+                    <h4 id="viz-title">FD001 Operating Conditions</h4>
+                    <p id="viz-desc">Single operating condition — low complexity, easy for models to generalize.</p>
+                </div>
+                <div class="viz-img-wrap">
+                    <img id="viz-img" src="FD001 op cons.png" alt="FD001 Operating Conditions" class="viz-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>FD001 op cons.png</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. METHODOLOGY -->
+    <section id="methodology" class="section reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Approach</span>
+                <h2 class="section-title">DA-TCN Pipeline</h2>
+            </div>
+            <p class="section-intro">A 4-stage pipeline designed to address domain shift and improve RUL accuracy.</p>
+
+            <div class="pipeline-flow">
+                <div class="pipe-card">
+                    <div class="pipe-num">01</div>
+                    <div class="pipe-icon"><i class="fas fa-filter"></i></div>
+                    <h4>Preprocessing</h4>
+                    <ul class="pipe-list">
+                        <li>Remove low-variance sensors</li>
+                        <li>K-Means clustering (6 groups)</li>
+                        <li>Per-condition normalization</li>
+                    </ul>
+                </div>
+                <div class="pipe-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipe-card">
+                    <div class="pipe-num">02</div>
+                    <div class="pipe-icon"><i class="fas fa-chart-line"></i></div>
+                    <h4>Delta Augmentation</h4>
+                    <ul class="pipe-list">
+                        <li>Concatenate raw features [X]</li>
+                        <li>First-order differences [ΔX]</li>
+                        <li>Higher-order rate-of-change</li>
+                    </ul>
+                </div>
+                <div class="pipe-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipe-card">
+                    <div class="pipe-num">03</div>
+                    <div class="pipe-icon"><i class="fas fa-project-diagram"></i></div>
+                    <h4>TCN Architecture</h4>
+                    <ul class="pipe-list">
+                        <li>4 Dilated blocks (d=1,2,4,8)</li>
+                        <li>Self-Attention pooling</li>
+                        <li>Residual connections</li>
+                    </ul>
+                </div>
+                <div class="pipe-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipe-card">
+                    <div class="pipe-num">04</div>
+                    <div class="pipe-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h4>Loss Function</h4>
+                    <ul class="pipe-list">
+                        <li>Adaptive Monotonic Loss</li>
+                        <li>Penalizes late predictions</li>
+                        <li>Safety-aware optimization</li>
+                    </ul>
+                </div>
+            </div>
+
+            
+        </div>
+    </section>
+
+    <!-- 5. SYSTEM ARCHITECTURE -->
+    <section id="architecture" class="section bg-alt reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Design</span>
+                <h2 class="section-title">System Architecture</h2>
+            </div>
+            <p class="section-intro">End-to-end architecture from raw sensor input to RUL prediction output.</p>
+            <div class="arch-img-wrap glass-card">
+                <img src="System Architecture.png" alt="System Architecture" class="arch-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>System Architecture.png</span></div>
+            </div>
+            <div class="arch-highlights", style="margin-bottom: 20px;">
+                <div class="arch-hl-card">
+                    <i class="fas fa-database highlight-secondary"></i>
+                    <span>C-MAPSS FD004 Input</span>
+                </div>
+                <div class="arch-hl-card">
+                    <i class="fas fa-sliders-h highlight-primary"></i>
+                    <span>Condition-Aware Normalization</span>
+                </div>
+                <div class="arch-hl-card">
+                    <i class="fas fa-brain highlight-secondary"></i>
+                    <span>DA-TCN + Attention</span>
+                </div>
+                <div class="arch-hl-card">
+                    <i class="fas fa-tachometer-alt highlight-primary"></i>
+                    <span>RUL Output (Cycles)</span>
+                </div>
+            </div>
+        <div class="method-img-wrap glass-card">
+                <h4 class="img-card-title"><i class="fas fa-network-wired"></i> Dilated Temporal Convolutional Network</h4>
+                <div class="method-img-box">
+                    <img src="Dilated TCN.png" alt="Dilated TCN Architecture" class="method-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>Dilated TCN.png</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. WORKING PROTOTYPE -->
+    <section id="prototype" class="section reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Interactive</span>
+                <h2 class="section-title">Inference Simulation</h2>
+            </div>
+            <p class="section-intro">Simulate the inference pipeline on two representative test engines.</p>
+
+            <div class="proto-grid">
+                <div class="proto-control-panel glass-card">
+                    <h4>Select Test Engine</h4>
+                    <div class="engine-btns">
+                        <button class="engine-btn active" id="btn-healthy" onclick="runSimulation('healthy')">
+                            <div class="engine-status green"></div>
+                            <div>
+                                <strong>Engine #142</strong>
+                                <span>Healthy — Long Life Remaining</span>
+                            </div>
+                        </button>
+                        <button class="engine-btn" id="btn-critical" onclick="runSimulation('critical')">
+                            <div class="engine-status red"></div>
+                            <div>
+                                <strong>Engine #210</strong>
+                                <span>Critical — Near Failure</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="sim-params">
+                        <div class="sim-param"><span class="sp-label">Window Size</span><span class="sp-val mono">30 cycles</span></div>
+                        <div class="sim-param"><span class="sp-label">Features</span><span class="sp-val mono">14 + 14Δ = 28</span></div>
+                        <div class="sim-param"><span class="sp-label">Model</span><span class="sp-val mono">DA-TCN v1</span></div>
+                        <div class="sim-param"><span class="sp-label">Condition</span><span class="sp-val mono" id="cond-display">OC-3</span></div>
+                    </div>
+                </div>
+
+                <div class="proto-output glass-card">
+                    <div class="pipeline-track">
+                        <div class="p-step" id="ps1">
+                            <div class="ps-dot"></div>
+                            <span>Input Window</span>
+                        </div>
+                        <div class="ps-line"></div>
+                        <div class="p-step" id="ps2">
+                            <div class="ps-dot"></div>
+                            <span>Δ Augmentation</span>
+                        </div>
+                        <div class="ps-line"></div>
+                        <div class="p-step" id="ps3">
+                            <div class="ps-dot"></div>
+                            <span>TCN Inference</span>
+                        </div>
+                        <div class="ps-line"></div>
+                        <div class="p-step" id="ps4">
+                            <div class="ps-dot"></div>
+                            <span>Attention Map</span>
+                        </div>
+                    </div>
+
+                    <div class="rul-display">
+                        <div class="rul-ring" id="rulRing">
+                            <div class="rul-inner">
+                                <span class="rul-label">Predicted RUL</span>
+                                <span id="rulResult" class="rul-value">--</span>
+                                <span class="rul-unit">cycles</span>
+                            </div>
+                        </div>
+                        <div id="rul-status" class="rul-status-msg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. RESULTS & ANALYSIS -->
+    <section id="results" class="section bg-alt reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Evaluation</span>
+                <h2 class="section-title">Results &amp; Analysis</h2>
+            </div>
+
+            <div class="results-tabs">
+                <button class="rtab active" onclick="switchResultTab('table')" data-tab="table">Comparison Table</button>
+                <button class="rtab" onclick="switchResultTab('bar')" data-tab="bar">Bar Graph</button>
+                <button class="rtab" onclick="switchResultTab('rul')" data-tab="rul">RUL Prediction</button>
+                <button class="rtab" onclick="switchResultTab('testing')" data-tab="testing">Testing Results</button>
+            </div>
+
+            <!-- TABLE TAB -->
+             <div class="result-tab-content active" id="tab-table">
+    <div class="table-scroll">
+        <table class="glass-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>FD001 RMSE <span class="metric-dir">↓</span></th>
+                    <th>FD001 R² <span class="metric-dir">↑</span></th>
+                    <th>FD004 RMSE <span class="metric-dir">↓</span></th>
+                    <th>FD004 R² <span class="metric-dir">↑</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="highlight-row">
+                    <td><span class="model-dot da"></span><strong>DA-TCN (Proposed)</strong></td>
+                    <td><strong>14.21</strong></td>
+                    <td><strong>0.783</strong></td>
+                    <td><strong>14.39</strong></td>
+                    <td><strong>0.722</strong></td>
+                </tr>
+                <tr>
+                    <td>Bi-GRU</td>
+                    <td>15.08</td><td>0.743</td><td>15.18</td><td>0.691</td>
+                </tr>
+                <tr>
+                    <td>TCN-Attention</td>
+                    <td>16.36</td><td>0.697</td><td>16.01</td><td>0.656</td>
+                </tr>
+                <tr>
+                    <td>Attention-LSTM</td>
+                    <td>17.71</td><td>0.645</td><td>16.87</td><td>0.619</td>
+                </tr>
+                <tr>
+                    <td>GRU</td>
+                    <td>18.27</td><td>0.622</td><td>17.27</td><td>0.600</td>
+                </tr>
+                <tr>
+                    <td>LinearSVR</td>
+                    <td>39.78</td><td>-0.791</td><td>18.62</td><td>0.535</td>
+                </tr>
+                <tr>
+                    <td>TCN</td>
+                    <td>18.62</td><td>0.535</td><td>19.26</td><td>0.503</td>
+                </tr>
+                <tr>
+                    <td>LSTM</td>
+                    <td>39.54</td><td>-0.769</td><td>34.66</td><td>-0.611</td>
+                </tr>
+                <tr>
+                    <td>GM(1,1) only</td>
+                    <td>39.51</td><td>-0.766</td><td>34.66</td><td>-0.611</td>
+                </tr>
+                <tr>
+                    <td>Random Forest</td>
+                    <td>33.38</td><td>-0.465</td><td>51.47</td><td>-3.086</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="table-note">
+        * Results on FD001 and FD004 datasets. Lower RMSE and higher R² indicate better model performance.
+    </p>
+</div>
+            <!-- <div class="result-tab-content active" id="tab-table">
+                <div class="table-scroll">
+                    <table class="glass-table">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>RMSE <span class="metric-dir">↓</span></th>
+                                <th>MAE <span class="metric-dir">↓</span></th>
+                                <th>PHM Score <span class="metric-dir">↓</span></th>
+                                <th>R² <span class="metric-dir">↑</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="model-dot rf"></span>Random Forest</td>
+                                <td>51.47</td><td>42.1</td><td>1.2e+05</td><td>-3.08</td>
+                            </tr>
+                            <tr>
+                                <td><span class="model-dot lstm"></span>LSTM</td>
+                                <td>34.66</td><td>28.4</td><td>2.4e+06</td><td>-0.61</td>
+                            </tr>
+                            <tr>
+                                <td><span class="model-dot tcn"></span>TCN (Baseline)</td>
+                                <td>19.26</td><td>15.8</td><td>3.1e+06</td><td>0.50</td>
+                            </tr>
+                            <tr class="highlight-row">
+                                <td><span class="model-dot da"></span><strong>DA-TCN (Proposed)</strong></td>
+                                <td><strong>14.39</strong></td>
+                                <td><strong>11.2</strong></td>
+                                <td><strong>2450</strong></td>
+                                <td><strong>0.72</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="table-note">* Values from FD004 test set benchmarks. Lower RMSE/MAE/PHM and higher R² = better.</p>
+            </div> -->
+
+            <!-- BAR TAB -->
+            <div class="result-tab-content" id="tab-bar">
+                <div class="result-img-card glass-card">
+                    <h4>Model Comparison — Bar Graph</h4>
+                    <div class="result-img-wrap">
+                        <img src="Comparison Bar Graph.png" alt="Comparison Bar Graph" class="result-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>Comparison Bar Graph.png</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RUL TAB -->
+            <div class="result-tab-content" id="tab-rul">
+                <div class="result-img-card glass-card">
+                    <h4>RUL Prediction Graph</h4>
+                    <div class="result-img-wrap">
+                        <img src="RUL Prediction Graph.png" alt="RUL Prediction Graph" class="result-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>RUL Prediction Graph.png</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TESTING TAB -->
+            <div class="result-tab-content" id="tab-testing">
+                <div class="result-img-card glass-card">
+                    <h4>Testing Results Visualization</h4>
+                    <div class="result-img-wrap">
+                        <img src="Testing Results.png" alt="Testing Results" class="result-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>Testing Results.png</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="obs-grid">
+                <div class="obs-card">
+                    <div class="obs-icon"><i class="fas fa-times-circle"></i></div>
+                    <h4>Why LSTM Fails</h4>
+                    <p>Predictions stay constant (~125 cycles) for most of engine life, exploiting the dataset cap and ignoring real sensor fluctuations.</p>
+                </div>
+                <div class="obs-card">
+                    <div class="obs-icon highlight-primary"><i class="fas fa-check-circle"></i></div>
+                    <h4>Why DA-TCN Works</h4>
+                    <p>Tracks steep end-of-life degradation in final 150 cycles, reacting to sensor patterns and delivering reliable early warnings.</p>
+                </div>
+                <!-- <div class="obs-card">
+                    <div class="obs-icon"><i class="fas fa-bolt"></i></div>
+                    <h4>PHM Score Advantage</h4>
+                    <p>DA-TCN achieves a <strong>12× safer</strong> PHM score (2450 vs 2.4M for LSTM) by strongly penalizing late failure predictions.</p>
+                </div> -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 8. STATE-OF-THE-ART COMPARISON -->
+    <section id="sota" class="section reveal-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Benchmarking</span>
+                <h2 class="section-title">State-of-the-Art Comparison</h2>
+            </div>
+
+            <div class="sota-advantages">
+                <div class="adv-card">
+                    <div class="adv-num highlight-secondary">~68K</div>
+                    <h4>Parameters</h4>
+                    <p>Compact model vs 250K+ in standard Transformers — suitable for flight controllers.</p>
+                </div>
+                <div class="adv-card">
+                    <div class="adv-num highlight-primary">12×</div>
+                    <h4>Safer PHM Score</h4>
+                    <p>Penalizes late predictions that risk engine failure in safety-critical environments.</p>
+                </div>
+                <div class="adv-card">
+                    <div class="adv-num highlight-secondary">0.72</div>
+                    <h4>R² on FD004</h4>
+                    <p>Outperforms all baselines on the hardest NASA benchmark dataset.</p>
+                </div>
+            </div>
+
+            <div class="sota-imgs-row">
+                <div class="sota-img-card glass-card">
+                    <h4><i class="fas fa-trophy"></i> SOTA Results Comparison</h4>
+                    <div class="sota-img-wrap">
+                        <img src="SOTA Results.png" alt="SOTA Results" class="sota-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>SOTA Results.png</span></div>
+                    </div>
+                </div>
+                <div class="sota-img-card glass-card">
+                    <h4><i class="fas fa-flask"></i> Ablation Study</h4>
+                    <div class="sota-img-wrap">
+                        <img src="Ablation Study.png" alt="Ablation Study" class="sota-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="img-placeholder" style="display:none;"><i class="fas fa-image"></i><span>Ablation Study.png</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. CONCLUSION -->
+    <section id="conclusion" class="section bg-alt reveal-section">
+        
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Takeaway</span>
+                <h2 class="section-title">Conclusion</h2>
+            </div>
+            <div class="hero-stats", style="margin-bottom: 20px;">
+                <div class="stat-pill"><span class="stat-val">14.39</span><span class="stat-lbl">RMSE</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill"><span class="stat-val">0.72</span><span class="stat-lbl">R² Score</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill"><span class="stat-val">2450</span><span class="stat-lbl">PHM Score</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat-pill"><span class="stat-val">~68K</span><span class="stat-lbl">Parameters</span></div>
+            </div> <br>
+            <div class="conclusion-layout">
+        
+                <div class="conclusion-main glass-card">
+                    
+                    <p class="conclusion-lead">The DA-TCN model successfully handles domain shift in the NASA FD004 dataset, delivering a robust, physically consistent, and safety-aware solution for turbofan engine maintenance.</p>
+                    <div class="conclusion-points">
+                        <div class="cp"><i class="fas fa-check highlight-secondary"></i><span><strong>Domain Shift Resolved</strong> — Per-condition normalization + clustering eliminates sensor ambiguity.</span></div>
+                        <div class="cp"><i class="fas fa-check highlight-secondary"></i><span><strong>Superior Accuracy</strong> — RMSE 14.39 vs 34.66 (LSTM) and 51.47 (RF) on FD004.</span></div>
+                        <div class="cp"><i class="fas fa-check highlight-secondary"></i><span><strong>Safety-First Design</strong> — Adaptive Monotonic Loss ensures conservative predictions.</span></div>
+                        <div class="cp"><i class="fas fa-check highlight-secondary"></i><span><strong>Lightweight Architecture</strong> — ~68K parameters, deployable on edge hardware.</span></div>
+                    </div>
+                </div>
+                <div class="conclusion-future glass-card">
+                    <h4><i class="fas fa-road"></i> Future Directions</h4>
+                    <ul class="styled-list">
+                        <li>Real-time streaming inference on embedded systems</li>
+                        <li>Extend to other C-MAPSS subsets (FD001–FD003)</li>
+                        <li>Uncertainty quantification with Bayesian layers</li>
+                        <li>Transfer learning across different engine types</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 10. REFERENCES -->
+    <footer id="references">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="footer-logo">[DA-TCN]</div>
+                    <p class="footer-tagline">Reliability Aware RUL Prediction for Turbofan Engines</p>
+                    <p class="footer-group">SIT Pune · Group 11 · 2026</p>
+                </div>
+                <div class="footer-col">
+                    <h4>References</h4>
+                    <ul class="ref-list">
+                        <li><span class="ref-num">[1]</span> NASA C-MAPSS Turbofan Engine Dataset</li>
+                        <li><span class="ref-num">[2]</span> Bai et al., "An Empirical Evaluation of Generic CNNs" (TCN)</li>
+                        <li><span class="ref-num">[3]</span> Grey Models in Prognostics &amp; Health Management, 2025</li>
+                        <li><span class="ref-num">[4]</span> Saxena &amp; Goebel, "Damage Propagation Modeling"</li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Project Details</h4>
+                    <div class="footer-meta">
+                        <div class="fm-row"><span>Institution</span><strong>SIT Pune</strong></div>
+                        <div class="fm-row"><span>Guide</span><strong>Dr. Geetanjali Sharma</strong></div>
+                        <div class="fm-row"><span>Dataset</span><strong>NASA C-MAPSS FD004</strong></div>
+                        <div class="fm-row"><span>Year</span><strong>2026</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 SIT Pune · Group 11 · DA-TCN Research Dashboard</p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
