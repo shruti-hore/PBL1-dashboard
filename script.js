@@ -109,17 +109,15 @@ window.switchViz = function(type) {
     const data = vizData[type];
     if (!data) return;
 
-    const titleEl   = document.getElementById('viz-title');
-    const descEl    = document.getElementById('viz-desc');
-    const imgEl     = document.getElementById('viz-img');
-    const vizFrame  = document.querySelector('.viz-frame');
+    const titleEl  = document.getElementById('viz-title');
+    const descEl   = document.getElementById('viz-desc');
+    const imgEl    = document.getElementById('viz-img');
+    const vizFrame = document.querySelector('.viz-frame');
 
-    // Button state
     document.querySelectorAll('.viz-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.viz === type);
     });
 
-    // Fade transition
     if (vizFrame) {
         vizFrame.style.opacity = '0.4';
         vizFrame.style.transition = 'opacity 0.25s ease';
@@ -131,7 +129,6 @@ window.switchViz = function(type) {
             imgEl.alt = data.alt;
             imgEl.src = data.img;
             imgEl.style.display = '';
-            // Reveal placeholder on error
             imgEl.onerror = function() {
                 this.style.display = 'none';
                 const ph = this.nextElementSibling;
@@ -153,6 +150,271 @@ window.switchResultTab = function(tab) {
     });
     document.querySelectorAll('.result-tab-content').forEach(content => {
         content.classList.toggle('active', content.id === 'tab-' + tab);
+    });
+};
+
+// ── RUL LIVE CHART ────────────────────────
+let rulChartInstance = null;
+let rulAnimFrame = null;
+let chartJSLoaded = false;
+
+function loadChartJS(cb) {
+    if (window.Chart) { cb(); return; }
+    if (chartJSLoaded) {
+        // Already injected, poll until ready
+        const poll = setInterval(() => {
+            if (window.Chart) { clearInterval(poll); cb(); }
+        }, 50);
+        return;
+    }
+    chartJSLoaded = true;
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+}
+
+function generateRULData(type) {
+    // Piecewise RUL curve matching reference image:
+    // flat cap zone (~125) → degradation → steep drop to end value
+    const totalCycles = 480;
+    const capCycles   = 260;   // flat zone ends here
+    const capRUL      = 125;
+    const endRUL      = type === 'healthy' ? 38 : 12;
+    const labels = [], trueRUL = [], predictedRUL = [];
+
+    // Seed-based pseudo-random for reproducible noise per engine type
+    let seed = type === 'healthy' ? 42 : 99;
+    function rand() {
+        seed = (seed * 16807 + 0) % 2147483647;
+        return (seed / 2147483647) - 0.5;
+    }
+
+    for (let i = 0; i <= totalCycles; i += 3) {
+        labels.push(i);
+
+        // True RUL: piecewise linear (flat then declining)
+        let tRUL;
+        if (i < capCycles) {
+            tRUL = capRUL;
+        } else {
+            const progress = (i - capCycles) / (totalCycles - capCycles);
+            tRUL = capRUL - progress * (capRUL - endRUL);
+        }
+        trueRUL.push(parseFloat(tRUL.toFixed(1)));
+
+        // Predicted RUL: noisy version matching reference graph style
+        let noise = 0;
+        if (i < capCycles) {
+            // Occasional sharp dips in flat zone (like reference image)
+            const dip1 = Math.exp(-Math.pow((i - 110) / 15, 2)) * 14;
+            const dip2 = Math.exp(-Math.pow((i - 190) / 12, 2)) * 10;
+            const dip3 = Math.exp(-Math.pow((i - 245) / 10, 2)) * 7;
+            noise = -(dip1 + dip2 + dip3) + rand() * 2.5;
+        } else {
+            // In degradation zone: oscillating noise that grows with severity
+            const progress = (i - capCycles) / (totalCycles - capCycles);
+            const amplitude = 5 + progress * 20;
+            const freq1 = 0.07, freq2 = 0.13;
+            noise = Math.sin(i * freq1) * amplitude * 0.6
+                  + Math.sin(i * freq2) * amplitude * 0.4
+                  + rand() * 5;
+            // Extra dip near 80% degradation (visible in reference)
+            const dipCenter = capCycles + (totalCycles - capCycles) * 0.78;
+            const bigDip = Math.exp(-Math.pow((i - dipCenter) / 18, 2)) * 22;
+            noise -= bigDip;
+        }
+
+        const pRUL = Math.max(endRUL - 8, Math.min(capRUL + 2, tRUL + noise));
+        predictedRUL.push(parseFloat(pRUL.toFixed(1)));
+    }
+
+    return { labels, trueRUL, predictedRUL };
+}
+
+window.launchRULChart = function(type) {
+    const section = document.getElementById('rulChartSection');
+    if (!section) return;
+
+    // Show section with slide-in animation
+    section.style.display = 'block';
+    section.style.opacity = '0';
+    section.style.transform = 'translateY(20px)';
+    requestAnimationFrame(() => {
+        section.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        section.style.opacity = '1';
+        section.style.transform = 'translateY(0)';
+    });
+
+    // Scroll smoothly to chart
+    setTimeout(() => {
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+
+    loadChartJS(() => {
+        // Cancel any in-progress animation
+        if (rulAnimFrame) { cancelAnimationFrame(rulAnimFrame); rulAnimFrame = null; }
+        if (rulChartInstance) { rulChartInstance.destroy(); rulChartInstance = null; }
+
+        // Reset footer stats
+        ['cs-cycle-val','cs-true-val','cs-pred-val','cs-error-val'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '—';
+        });
+        const statusEl = document.getElementById('cs-status-val');
+        if (statusEl) { statusEl.textContent = '—'; statusEl.className = 'cs-status'; }
+
+        const { labels, trueRUL, predictedRUL } = generateRULData(type);
+        const canvas = document.getElementById('rulLiveChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        // Live arrays — data streams in frame by frame
+        const visibleTrue = [];
+        const visiblePred = [];
+
+        rulChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'True RUL',
+                        data: visibleTrue,
+                        borderColor: '#22D3EE',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        pointHoverBackgroundColor: '#22D3EE',
+                        tension: 0.1,
+                        order: 1
+                    },
+                    {
+                        label: 'Predicted',
+                        data: visiblePred,
+                        borderColor: '#F59E0B',
+                        backgroundColor: 'rgba(245,158,11,0.05)',
+                        fill: false,
+                        borderWidth: 1.8,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        pointHoverBackgroundColor: '#F59E0B',
+                        tension: 0.3,
+                        order: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#111827',
+                        borderColor: 'rgba(99,102,241,0.35)',
+                        borderWidth: 1,
+                        titleColor: '#9CA3AF',
+                        bodyColor: '#E5E7EB',
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            title: (items) => `Cycle  ${items[0].label}`,
+                            label: (item) => `  ${item.dataset.label}: ${parseFloat(item.parsed.y).toFixed(1)} cycles`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Engine Cycles',
+                            color: '#4B5563',
+                            font: { size: 11, family: "'Space Grotesk', sans-serif" }
+                        },
+                        ticks: {
+                            color: '#4B5563',
+                            maxTicksLimit: 9,
+                            font: { size: 10 },
+                            autoSkip: true
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        border: { color: 'rgba(255,255,255,0.08)' }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'RUL (cycles)',
+                            color: '#4B5563',
+                            font: { size: 11, family: "'Space Grotesk', sans-serif" }
+                        },
+                        min: 0,
+                        max: 140,
+                        ticks: {
+                            color: '#4B5563',
+                            stepSize: 20,
+                            font: { size: 10 }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        border: { color: 'rgba(255,255,255,0.08)' }
+                    }
+                }
+            }
+        });
+
+        // Stream data points frame by frame
+        let idx = 0;
+        const speed = 4; // points per frame — increase for faster animation
+
+        function stream() {
+            const end = Math.min(idx + speed, labels.length);
+            for (let j = idx; j < end; j++) {
+                visibleTrue.push(trueRUL[j]);
+                visiblePred.push(predictedRUL[j]);
+            }
+            idx = end;
+            rulChartInstance.update('none');
+
+            // Update footer live stats
+            const cyc  = labels[idx - 1];
+            const tVal = trueRUL[idx - 1];
+            const pVal = predictedRUL[idx - 1];
+            const err  = Math.abs(tVal - pVal).toFixed(1);
+
+            const cycleEl = document.getElementById('cs-cycle-val');
+            const trueEl  = document.getElementById('cs-true-val');
+            const predEl  = document.getElementById('cs-pred-val');
+            const errEl   = document.getElementById('cs-error-val');
+            const statEl  = document.getElementById('cs-status-val');
+
+            if (cycleEl) cycleEl.textContent = cyc;
+            if (trueEl)  trueEl.textContent  = tVal.toFixed(1);
+            if (predEl)  predEl.textContent  = pVal.toFixed(1);
+            if (errEl)   errEl.textContent   = '±' + err;
+
+            if (statEl) {
+                if (tVal > 80) {
+                    statEl.textContent = 'HEALTHY';
+                    statEl.className = 'cs-status healthy';
+                } else if (tVal > 40) {
+                    statEl.textContent = 'WARNING';
+                    statEl.className = 'cs-status warning';
+                } else {
+                    statEl.textContent = 'CRITICAL';
+                    statEl.className = 'cs-status critical';
+                }
+            }
+
+            if (idx < labels.length) {
+                rulAnimFrame = requestAnimationFrame(stream);
+            } else {
+                rulAnimFrame = null;
+            }
+        }
+
+        rulAnimFrame = requestAnimationFrame(stream);
     });
 };
 
@@ -192,13 +454,13 @@ window.runSimulation = function(type) {
         } else {
             clearInterval(interval);
 
-            const rulValue = type === 'healthy' ? 142 : 14;
+            const rulValue  = type === 'healthy' ? 142 : 14;
             const isHealthy = type === 'healthy';
 
             // Animate counter
             let count = 0;
             const target = rulValue;
-            const step = Math.max(1, Math.ceil(target / 30));
+            const step   = Math.max(1, Math.ceil(target / 30));
             const counter = setInterval(() => {
                 count = Math.min(count + step, target);
                 if (display) display.textContent = count;
@@ -207,7 +469,7 @@ window.runSimulation = function(type) {
 
             // Ring fill
             if (ring) {
-                const pct = (rulValue / 150) * 360;
+                const pct   = (rulValue / 150) * 360;
                 const color = isHealthy ? 'var(--secondary)' : 'var(--danger)';
                 ring.style.background = `conic-gradient(${color} ${pct}deg, rgba(255,255,255,0.04) ${pct}deg)`;
             }
@@ -215,11 +477,16 @@ window.runSimulation = function(type) {
             // Status
             if (display) display.style.color = isHealthy ? 'var(--secondary)' : 'var(--danger)';
             if (statusMsg) {
-                statusMsg.textContent = isHealthy ? '✓ HEALTHY — Maintenance Not Urgent' : '⚠ CRITICAL — Immediate Maintenance Required';
+                statusMsg.textContent = isHealthy
+                    ? '✓ HEALTHY — Maintenance Not Urgent'
+                    : '⚠ CRITICAL — Immediate Maintenance Required';
                 statusMsg.className = 'rul-status-msg ' + (isHealthy ? 'safe' : 'critical');
             }
 
             simRunning = false;
+
+            // Launch RUL live chart after a brief pause
+            setTimeout(() => launchRULChart(type), 300);
         }
     }, 450);
 };

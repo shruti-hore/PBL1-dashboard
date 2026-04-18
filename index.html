@@ -379,6 +379,34 @@
                     </div>
                 </div>
             </div>
+            <!-- RUL LIVE SENSOR GRAPH -->
+<div class="rul-chart-wrap glass-card" id="rulChartSection" style="margin-top: 32px; padding: 28px; display: none;">
+    <div class="rul-chart-header">
+        <div>
+            <h4 class="img-card-title" style="margin-bottom: 4px;">
+                <i class="fas fa-wave-square"></i> Live RUL Prediction — Sensor Trace
+            </h4>
+            <p style="font-size: 0.82rem; color: var(--text-dim); margin: 0;">Animated inference over engine lifecycle · Predicted vs True RUL</p>
+        </div>
+        <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot" style="background:#22D3EE;"></span>True RUL</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#F59E0B; border-radius: 2px;"></span>Predicted</span>
+        </div>
+    </div>
+    <div style="position: relative; width: 100%; height: 280px; margin-top: 20px;">
+        <canvas id="rulLiveChart" role="img" aria-label="Animated line chart showing True RUL vs Predicted RUL over engine lifecycle"></canvas>
+    </div>
+    <div class="chart-footer">
+        <div class="chart-stat" id="cs-cycle"><span>Cycle</span><strong id="cs-cycle-val">—</strong></div>
+        <div class="chart-stat" id="cs-true"><span>True RUL</span><strong id="cs-true-val" style="color: #22D3EE;">—</strong></div>
+        <div class="chart-stat" id="cs-pred"><span>Predicted</span><strong id="cs-pred-val" style="color: #F59E0B;">—</strong></div>
+        <div class="chart-stat" id="cs-error"><span>Error</span><strong id="cs-error-val">—</strong></div>
+        <div class="chart-stat">
+            <span>Status</span>
+            <strong id="cs-status-val" class="cs-status">—</strong>
+        </div>
+    </div>
+</div>
         </div>
     </section>
 
