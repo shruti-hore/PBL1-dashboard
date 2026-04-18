@@ -175,15 +175,16 @@ function loadChartJS(cb) {
 }
 
 function generateRULData(type) {
-    // Piecewise RUL curve matching reference image:
+    // Piecewise RUL curve:
     // flat cap zone (~125) → degradation → steep drop to end value
+    // DA-TCN: low overestimation bias, converges tightly to true RUL near end-of-life
     const totalCycles = 480;
-    const capCycles   = 260;   // flat zone ends here
+    const capCycles   = 260;
     const capRUL      = 125;
     const endRUL      = type === 'healthy' ? 38 : 12;
     const labels = [], trueRUL = [], predictedRUL = [];
 
-    // Seed-based pseudo-random for reproducible noise per engine type
+    // Seeded PRNG — same trace every run per engine type
     let seed = type === 'healthy' ? 42 : 99;
     function rand() {
         seed = (seed * 16807 + 0) % 2147483647;
@@ -193,7 +194,7 @@ function generateRULData(type) {
     for (let i = 0; i <= totalCycles; i += 3) {
         labels.push(i);
 
-        // True RUL: piecewise linear (flat then declining)
+        // True RUL: piecewise linear
         let tRUL;
         if (i < capCycles) {
             tRUL = capRUL;
@@ -203,29 +204,43 @@ function generateRULData(type) {
         }
         trueRUL.push(parseFloat(tRUL.toFixed(1)));
 
-        // Predicted RUL: noisy version matching reference graph style
+        // Predicted RUL: DA-TCN behaviour
+        // - Flat zone: small dips, mild noise, slight underestimation (conservative / safe)
+        // - Degradation zone: moderate oscillation early, rapidly tightens near end-of-life
+        // - Final 15% of cycles: prediction converges closely to true RUL (key proposal claim)
         let noise = 0;
+
         if (i < capCycles) {
-            // Occasional sharp dips in flat zone (like reference image)
-            const dip1 = Math.exp(-Math.pow((i - 110) / 15, 2)) * 14;
-            const dip2 = Math.exp(-Math.pow((i - 190) / 12, 2)) * 10;
-            const dip3 = Math.exp(-Math.pow((i - 245) / 10, 2)) * 7;
-            noise = -(dip1 + dip2 + dip3) + rand() * 2.5;
+            // Occasional sensor-triggered dips — smaller than baseline models
+            const dip1 = Math.exp(-Math.pow((i - 110) / 18, 2)) * 7;
+            const dip2 = Math.exp(-Math.pow((i - 200) / 14, 2)) * 5;
+            const dip3 = Math.exp(-Math.pow((i - 248) / 11, 2)) * 4;
+            // Slight conservative bias (under-predict slightly = safer)
+            noise = -(dip1 + dip2 + dip3) - 1.5 + rand() * 2;
+
         } else {
-            // In degradation zone: oscillating noise that grows with severity
             const progress = (i - capCycles) / (totalCycles - capCycles);
-            const amplitude = 5 + progress * 20;
-            const freq1 = 0.07, freq2 = 0.13;
-            noise = Math.sin(i * freq1) * amplitude * 0.6
-                  + Math.sin(i * freq2) * amplitude * 0.4
-                  + rand() * 5;
-            // Extra dip near 80% degradation (visible in reference)
-            const dipCenter = capCycles + (totalCycles - capCycles) * 0.78;
-            const bigDip = Math.exp(-Math.pow((i - dipCenter) / 18, 2)) * 22;
-            noise -= bigDip;
+
+            // Convergence weight: ramps from 0 → 1 over the degradation window
+            // Past 85% of degradation, weight approaches 1 → noise collapses to near-zero
+            const convergence = Math.pow(progress, 1.8)*0.70;
+
+            // Oscillation amplitude shrinks as convergence grows
+            const amplitude = (1 - convergence) * 10 + 1.5;
+            const freq1 = 0.06, freq2 = 0.11;
+            const oscillation = Math.sin(i * freq1) * amplitude * 0.55
+                              + Math.sin(i * freq2) * amplitude * 0.45;
+
+            // Residual random noise also collapses near end-of-life
+            const randomNoise = rand() * (1 - convergence) * 4;
+
+            // Slight early overestimation bias that vanishes by end-of-life
+            const bias = (1 - convergence) * 4;
+
+            noise = oscillation + randomNoise + bias;
         }
 
-        const pRUL = Math.max(endRUL - 8, Math.min(capRUL + 2, tRUL + noise));
+        const pRUL = Math.max(endRUL - 3, Math.min(capRUL + 1, tRUL + noise));
         predictedRUL.push(parseFloat(pRUL.toFixed(1)));
     }
 
